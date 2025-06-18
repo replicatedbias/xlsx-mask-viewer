@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>이름 및 연락처 간편 마스킹</title>
+  <title>이름 + 연락처 간편 마스킹</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
     textarea { width: 100%; height: 200px; font-size: 14px; }
@@ -19,7 +19,7 @@
 
   <h2>이름 + 전화번호 또는 전화번호만 붙여넣기</h2>
   <p>예시 (이름+전화번호): <code>김민수 010-1234-5678</code><br>
-     예시 (전화번호만): <code>010-1234-5678</code></p>
+     예시 (전화번호만): <code>1012345678</code>, <code>821012345678</code>, <code>010-1234-5678</code></p>
 
   <label for="inputMode">입력 형식:</label>
   <select id="inputMode">
@@ -37,12 +37,6 @@
       <option value="last4">뒤 4자리만 (5678)</option>
     </select>
 
-    <label for="nameMask">이름 마스킹:</label>
-    <select id="nameMask">
-      <option value="only3">3글자만 마스킹</option>
-      <option value="with2">2글자도 마스킹</option>
-    </select>
-
     <button onclick="process()">처리하기</button>
     <button id="copyBtn" onclick="copyTable()">📋 복사하기</button>
   </div>
@@ -51,21 +45,40 @@
   <div id="warnings"></div>
 
   <script>
-    function maskName(name, mode) {
+    function maskName(name) {
       name = name.trim();
-      if (mode === 'only3' && name.length === 3) {
-        return name[0] + '*' + name[2];
-      } else if (mode === 'with2' && name.length === 2) {
-        return name[0] + '*';
-      } else if (mode === 'with2' && name.length === 3) {
-        return name[0] + '*' + name[2];
-      }
+      const len = name.length;
+      if (len === 2) return name[0] + '*';
+      if (len === 3) return name[0] + '*' + name[2];
+      if (len === 4 || len === 5) return name[0] + '**' + name[len - 1];
+      if (len >= 6) return name[0] + '*'.repeat(len - 2) + name[len - 1];
       return name;
     }
 
+    function autoFixPhone(rawPhone) {
+      let digits = rawPhone.replace(/\D/g, '');
+
+      // 국가번호 82로 시작하면 → 0으로 보정
+      if (digits.startsWith('82') && digits.length >= 11) {
+        digits = '0' + digits.slice(2);
+      }
+
+      // 1로 시작하는 10자리 번호 → 010 + 마지막 8자리
+      if (digits.length === 10 && digits.startsWith('1')) {
+        return '010' + digits.slice(-8); // ✅ 수정된 부분
+      }
+
+      // 이미 정상적인 010 시작 11자리
+      if (digits.length === 11 && digits.startsWith('010')) {
+        return digits;
+      }
+
+      return ''; // 그 외는 무시
+    }
+
     function formatPhoneNumber(phone, mode) {
-      const digits = phone.replace(/\D/g, '');
-      if (digits.length < 10) return '';
+      const digits = autoFixPhone(phone);
+      if (digits.length !== 11) return '';
       const part1 = digits.slice(0, 3);
       const part2 = digits.slice(3, 7);
       const part3 = digits.slice(7, 11);
@@ -73,14 +86,13 @@
       if (mode === 'hyphen') return `${part1}-${part2}-${part3}`;
       if (mode === 'plain') return `${part1}${part2}${part3}`;
       if (mode === 'last4') return part3;
-      return phone;
+      return digits;
     }
 
     function process() {
       const raw = document.getElementById('rawInput').value.trim();
       const lines = raw.split('\n');
       const phoneFormat = document.getElementById('phoneFormat').value;
-      const nameMaskMode = document.getElementById('nameMask').value;
       const inputMode = document.getElementById('inputMode').value;
 
       let html = '';
@@ -93,7 +105,7 @@
           if (parts.length >= 2) {
             const name = parts[0];
             const phone = parts.slice(1).join('');
-            const maskedName = maskName(name, nameMaskMode);
+            const maskedName = maskName(name);
             const formattedPhone = formatPhoneNumber(phone, phoneFormat);
             if (formattedPhone) {
               html += `<tr><td>${maskedName}</td><td>${formattedPhone}</td></tr>`;
@@ -104,7 +116,7 @@
             invalidLines.push(`줄 ${index + 1}: ${line}`);
           }
         });
-      } else if (inputMode === 'phone_only') {
+      } else {
         html += '<table id="resultTable"><tr><th>전화번호</th></tr>';
         lines.forEach((line, index) => {
           const formattedPhone = formatPhoneNumber(line.trim(), phoneFormat);
