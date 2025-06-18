@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>붙여넣기 기반 이름/전화번호 처리기</title>
+  <title>이름 및 연락처 간편 마스킹</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
     textarea { width: 100%; height: 200px; font-size: 14px; }
@@ -17,9 +17,17 @@
 </head>
 <body>
 
-  <h2>이름 + 전화번호 붙여넣기</h2>
-  <p>예시: <code>김민수 010-1234-5678</code></p>
-  <textarea id="rawInput" placeholder="이름과 전화번호를 한 줄에 하나씩 입력하세요"></textarea><br>
+  <h2>이름 + 전화번호 또는 전화번호만 붙여넣기</h2>
+  <p>예시 (이름+전화번호): <code>김민수 010-1234-5678</code><br>
+     예시 (전화번호만): <code>010-1234-5678</code></p>
+
+  <label for="inputMode">입력 형식:</label>
+  <select id="inputMode">
+    <option value="name_phone">이름 + 전화번호</option>
+    <option value="phone_only">전화번호만</option>
+  </select>
+
+  <textarea id="rawInput" placeholder="붙여넣기 내용을 여기에 입력하세요"></textarea><br>
 
   <div style="margin-top:10px;">
     <label for="phoneFormat">전화번호 형식:</label>
@@ -73,42 +81,54 @@
       const lines = raw.split('\n');
       const phoneFormat = document.getElementById('phoneFormat').value;
       const nameMaskMode = document.getElementById('nameMask').value;
+      const inputMode = document.getElementById('inputMode').value;
 
-      let html = '<table id="resultTable"><tr><th>이름 (마스킹)</th><th>전화번호</th></tr>';
-      let warnings = '';
+      let html = '';
       let invalidLines = [];
 
-      lines.forEach((line, index) => {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          const name = parts[0];
-          const phone = parts.slice(1).join('');
-          const maskedName = maskName(name, nameMaskMode);
-          const formattedPhone = formatPhoneNumber(phone, phoneFormat);
-          if (formattedPhone) {
-            html += `<tr><td>${maskedName}</td><td>${formattedPhone}</td></tr>`;
-          } else {
+      if (inputMode === 'name_phone') {
+        html += '<table id="resultTable"><tr><th>이름 (마스킹)</th><th>전화번호</th></tr>';
+        lines.forEach((line, index) => {
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 2) {
+            const name = parts[0];
+            const phone = parts.slice(1).join('');
+            const maskedName = maskName(name, nameMaskMode);
+            const formattedPhone = formatPhoneNumber(phone, phoneFormat);
+            if (formattedPhone) {
+              html += `<tr><td>${maskedName}</td><td>${formattedPhone}</td></tr>`;
+            } else {
+              invalidLines.push(`줄 ${index + 1}: ${line}`);
+            }
+          } else if (line.trim() !== '') {
             invalidLines.push(`줄 ${index + 1}: ${line}`);
           }
-        } else if (line.trim() !== '') {
-          invalidLines.push(`줄 ${index + 1}: ${line}`);
-        }
-      });
+        });
+      } else if (inputMode === 'phone_only') {
+        html += '<table id="resultTable"><tr><th>전화번호</th></tr>';
+        lines.forEach((line, index) => {
+          const formattedPhone = formatPhoneNumber(line.trim(), phoneFormat);
+          if (formattedPhone) {
+            html += `<tr><td>${formattedPhone}</td></tr>`;
+          } else if (line.trim() !== '') {
+            invalidLines.push(`줄 ${index + 1}: ${line}`);
+          }
+        });
+      }
 
       html += '</table>';
       document.getElementById('output').innerHTML = html;
 
       if (invalidLines.length > 0) {
-        warnings = `<strong>⚠ 잘못된 줄:</strong><br><ul>`;
+        let warnings = `<strong>⚠ 잘못된 줄:</strong><br><ul>`;
         invalidLines.forEach(line => {
           warnings += `<li>${line}</li>`;
         });
         warnings += '</ul>';
+        document.getElementById('warnings').innerHTML = warnings;
       } else {
-        warnings = '';
+        document.getElementById('warnings').innerHTML = '';
       }
-
-      document.getElementById('warnings').innerHTML = warnings;
     }
 
     function copyTable() {
