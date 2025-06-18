@@ -1,76 +1,82 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="ko">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.6">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  <meta charset="UTF-8">
+  <title>이름 마스킹 & 전화번호 하이픈 변환</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background-color: #eee; }
   </style>
 </head>
 <body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html lang="ko"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="UTF-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;이름 마스킹 및 전화번호 추출&lt;/title&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"&gt;&lt;/script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>body { font-family: sans-serif; margin: 20px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>table, th, td { border: 1px solid #aaa; border-collapse: collapse; padding: 8px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>th { background: #eee; }</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;h2&gt;엑셀 업로드 → 이름 마스킹 &amp; 전화번호 뒤 4자리 추출&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;input type="file" id="fileInput" accept=".xlsx" /&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="output"&gt;&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function maskName(name) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (typeof name !== 'string') return '';</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (name.length === 3) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>return name[0] + '*' + name[2];</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>return name; // 3글자가 아닌 경우 그대로</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function extractLast4Digits(phone) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const digits = phone.toString().replace(/\D/g, ''); // 숫자만 추출</p>
-<p class="p1"><span class="Apple-converted-space">      </span>return digits.slice(-4); // 마지막 4자리</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>document.getElementById('fileInput').addEventListener('change', function(e) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const file = e.target.files[0];</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (!file) return;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>const reader = new FileReader();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>reader.onload = function(event) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const data = new Uint8Array(event.target.result);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const workbook = XLSX.read(data, { type: 'array' });</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const sheetName = workbook.SheetNames[0];</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const sheet = workbook.Sheets[sheetName];</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const json = XLSX.utils.sheet_to_json(sheet);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>let html = '&lt;table&gt;&lt;tr&gt;&lt;th&gt;이름 (마스킹)&lt;/th&gt;&lt;th&gt;전화번호 뒤 4자리&lt;/th&gt;&lt;/tr&gt;';</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>json.forEach(row =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>const name = maskName(row['이름']);</p>
-<p class="p1"><span class="Apple-converted-space">          </span>const phoneLast4 = extractLast4Digits(row['전화번호']);</p>
-<p class="p1"><span class="Apple-converted-space">          </span>html += `&lt;tr&gt;&lt;td&gt;${name}&lt;/td&gt;&lt;td&gt;${phoneLast4}&lt;/td&gt;&lt;/tr&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>html += '&lt;/table&gt;';</p>
-<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('output').innerHTML = html;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>};</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>reader.readAsArrayBuffer(file);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>});</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+  <h2>엑셀 업로드 → 이름 가운데 * 마스킹 + 전화번호 변환</h2>
+  <input type="file" id="fileInput" accept=".xlsx" />
+  <label for="phoneFormat">전화번호 형식:</label>
+  <select id="phoneFormat">
+    <option value="hyphen">하이픈 유지 (010-1234-5678)</option>
+    <option value="plain">하이픈 제거 (01012345678)</option>
+    <option value="last4">뒤 4자리만 (5678)</option>
+  </select>
+
+  <div id="output"></div>
+
+  <script>
+    function maskName(name) {
+      if (typeof name !== 'string') return '';
+      if (name.length === 3) {
+        return name[0] + '*' + name[2];
+      }
+      return name;
+    }
+
+    function formatPhoneNumber(phone, mode) {
+      const digits = phone.toString().replace(/\D/g, '');
+      if (digits.length < 10) return '';
+      const part1 = digits.slice(0, 3);
+      const part2 = digits.slice(3, 7);
+      const part3 = digits.slice(7, 11);
+
+      if (mode === 'hyphen') {
+        return `${part1}-${part2}-${part3}`;
+      } else if (mode === 'plain') {
+        return `${part1}${part2}${part3}`;
+      } else if (mode === 'last4') {
+        return part3;
+      } else {
+        return phone;
+      }
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        const format = document.getElementById('phoneFormat').value;
+        let html = '<table><tr><th>이름 (마스킹)</th><th>전화번호</th></tr>';
+
+        json.forEach(row => {
+          const maskedName = maskName(row['이름']);
+          const formattedPhone = formatPhoneNumber(row['전화번호'], format);
+          html += `<tr><td>${maskedName}</td><td>${formattedPhone}</td></tr>`;
+        });
+
+        html += '</table>';
+        document.getElementById('output').innerHTML = html;
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
 </body>
 </html>
