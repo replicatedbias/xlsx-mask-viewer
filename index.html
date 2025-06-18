@@ -2,81 +2,137 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>이름 마스킹 & 전화번호 하이픈 변환</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>붙여넣기 기반 이름/전화번호 처리기</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
+    textarea { width: 100%; height: 200px; font-size: 14px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; background: #fff; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
     th { background-color: #eee; }
+    select, button { margin-top: 10px; padding: 5px 10px; font-size: 14px; }
+    #warnings { color: red; margin-top: 10px; }
+    #copyBtn { margin-left: 10px; }
+    label { margin-right: 10px; }
   </style>
 </head>
 <body>
-  <h2>엑셀 업로드 → 이름 가운데 * 마스킹 + 전화번호 변환</h2>
-  <input type="file" id="fileInput" accept=".xlsx" />
-  <label for="phoneFormat">전화번호 형식:</label>
-  <select id="phoneFormat">
-    <option value="hyphen">하이픈 유지 (010-1234-5678)</option>
-    <option value="plain">하이픈 제거 (01012345678)</option>
-    <option value="last4">뒤 4자리만 (5678)</option>
-  </select>
+
+  <h2>이름 + 전화번호 붙여넣기</h2>
+  <p>예시: <code>김민수 010-1234-5678</code></p>
+  <textarea id="rawInput" placeholder="이름과 전화번호를 한 줄에 하나씩 입력하세요"></textarea><br>
+
+  <div style="margin-top:10px;">
+    <label for="phoneFormat">전화번호 형식:</label>
+    <select id="phoneFormat">
+      <option value="hyphen">하이픈 유지 (010-1234-5678)</option>
+      <option value="plain">하이픈 제거 (01012345678)</option>
+      <option value="last4">뒤 4자리만 (5678)</option>
+    </select>
+
+    <label for="nameMask">이름 마스킹:</label>
+    <select id="nameMask">
+      <option value="only3">3글자만 마스킹</option>
+      <option value="with2">2글자도 마스킹</option>
+    </select>
+
+    <button onclick="process()">처리하기</button>
+    <button id="copyBtn" onclick="copyTable()">📋 복사하기</button>
+  </div>
 
   <div id="output"></div>
+  <div id="warnings"></div>
 
   <script>
-    function maskName(name) {
-      if (typeof name !== 'string') return '';
-      if (name.length === 3) {
+    function maskName(name, mode) {
+      name = name.trim();
+      if (mode === 'only3' && name.length === 3) {
+        return name[0] + '*' + name[2];
+      } else if (mode === 'with2' && name.length === 2) {
+        return name[0] + '*';
+      } else if (mode === 'with2' && name.length === 3) {
         return name[0] + '*' + name[2];
       }
       return name;
     }
 
     function formatPhoneNumber(phone, mode) {
-      const digits = phone.toString().replace(/\D/g, '');
+      const digits = phone.replace(/\D/g, '');
       if (digits.length < 10) return '';
       const part1 = digits.slice(0, 3);
       const part2 = digits.slice(3, 7);
       const part3 = digits.slice(7, 11);
 
-      if (mode === 'hyphen') {
-        return `${part1}-${part2}-${part3}`;
-      } else if (mode === 'plain') {
-        return `${part1}${part2}${part3}`;
-      } else if (mode === 'last4') {
-        return part3;
-      } else {
-        return phone;
-      }
+      if (mode === 'hyphen') return `${part1}-${part2}-${part3}`;
+      if (mode === 'plain') return `${part1}${part2}${part3}`;
+      if (mode === 'last4') return part3;
+      return phone;
     }
 
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
+    function process() {
+      const raw = document.getElementById('rawInput').value.trim();
+      const lines = raw.split('\n');
+      const phoneFormat = document.getElementById('phoneFormat').value;
+      const nameMaskMode = document.getElementById('nameMask').value;
 
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet);
+      let html = '<table id="resultTable"><tr><th>이름 (마스킹)</th><th>전화번호</th></tr>';
+      let warnings = '';
+      let invalidLines = [];
 
-        const format = document.getElementById('phoneFormat').value;
-        let html = '<table><tr><th>이름 (마스킹)</th><th>전화번호</th></tr>';
+      lines.forEach((line, index) => {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          const name = parts[0];
+          const phone = parts.slice(1).join('');
+          const maskedName = maskName(name, nameMaskMode);
+          const formattedPhone = formatPhoneNumber(phone, phoneFormat);
+          if (formattedPhone) {
+            html += `<tr><td>${maskedName}</td><td>${formattedPhone}</td></tr>`;
+          } else {
+            invalidLines.push(`줄 ${index + 1}: ${line}`);
+          }
+        } else if (line.trim() !== '') {
+          invalidLines.push(`줄 ${index + 1}: ${line}`);
+        }
+      });
 
-        json.forEach(row => {
-          const maskedName = maskName(row['이름']);
-          const formattedPhone = formatPhoneNumber(row['전화번호'], format);
-          html += `<tr><td>${maskedName}</td><td>${formattedPhone}</td></tr>`;
+      html += '</table>';
+      document.getElementById('output').innerHTML = html;
+
+      if (invalidLines.length > 0) {
+        warnings = `<strong>⚠ 잘못된 줄:</strong><br><ul>`;
+        invalidLines.forEach(line => {
+          warnings += `<li>${line}</li>`;
         });
+        warnings += '</ul>';
+      } else {
+        warnings = '';
+      }
 
-        html += '</table>';
-        document.getElementById('output').innerHTML = html;
-      };
+      document.getElementById('warnings').innerHTML = warnings;
+    }
 
-      reader.readAsArrayBuffer(file);
-    });
+    function copyTable() {
+      const table = document.getElementById("resultTable");
+      if (!table) {
+        alert("먼저 처리하기 버튼을 눌러주세요.");
+        return;
+      }
+
+      const range = document.createRange();
+      range.selectNode(table);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      try {
+        document.execCommand("copy");
+        alert("표가 복사되었습니다! 엑셀에 붙여넣으세요.");
+      } catch (err) {
+        alert("복사 실패. 수동으로 Ctrl+C를 눌러주세요.");
+      }
+
+      selection.removeAllRanges();
+    }
   </script>
 </body>
 </html>
